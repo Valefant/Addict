@@ -3,16 +3,16 @@ package addict
 /**
  * Basic IoC container
  */
-class Addict {
+class AddictContainer {
     /**
      * Modules provide a separation for the bindings.
      */
-    private val modules = mutableMapOf<String, Module>()
+    private val modules = mutableMapOf<String, AddictModule>()
 
     /**
      * The current active module.
      */
-    var activeModule: Module = modules.getOrPut(DEFAULT_MODULE) { Module() }
+    var activeModule: AddictModule = modules.getOrPut(DEFAULT_MODULE) { AddictModule() }
 
     /**
      * Changes the module of the current container instance.
@@ -20,7 +20,7 @@ class Addict {
      * @param name The name of the module to change or create
      */
     fun changeModule(name: String) {
-        activeModule = modules.getOrPut(name) { Module() }
+        activeModule = modules.getOrPut(name) { AddictModule() }
     }
 
     /**
@@ -28,7 +28,7 @@ class Addict {
      * @param interfaze The interface to bind for the [activeModule]
      * @param clazz The class which implements the interface
      */
-    fun <I> bind(interfaze: Class<I>, clazz: Class<out I>, scope: Scope = Scope.SINGLETON) {
+    fun <I> bind(interfaze: Class<I>, clazz: Class<out I>) {
         activeModule.bind(interfaze, clazz)
     }
 

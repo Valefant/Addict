@@ -2,7 +2,10 @@ package addict
 
 import javax.inject.Inject
 
-class Module {
+/**
+ * Represents a module to separate contexts in the addict container
+ */
+class AddictModule {
     /**
      * The bindings of interfaces to classes.
      */

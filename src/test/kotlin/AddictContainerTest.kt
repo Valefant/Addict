@@ -1,4 +1,4 @@
-import addict.Addict
+import addict.AddictContainer
 import addict.NoBindingFoundException
 import org.hamcrest.CoreMatchers
 import org.hamcrest.MatcherAssert
@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import javax.inject.Inject
 
-class AddictTest {
+class AddictContainerTest {
 
     interface ServiceA
     class ServiceAImpl @Inject constructor(val serviceB: ServiceB): ServiceA
@@ -22,7 +22,7 @@ class AddictTest {
 
     @Test
     fun testSimpleDependencyGraph() {
-        val container = Addict()
+        val container = AddictContainer()
         container.apply {
             bind(ServiceA::class.java, ServiceAImpl::class.java)
             bind(ServiceB::class.java, ServiceBImpl::class.java)
@@ -42,7 +42,7 @@ class AddictTest {
 
     @Test
     fun testModules() {
-        val container = Addict()
+        val container = AddictContainer()
         container.apply {
             bind(ServiceA::class.java, ServiceAImpl::class.java)
             bind(ServiceB::class.java, ServiceBImpl::class.java)
