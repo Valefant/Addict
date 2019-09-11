@@ -1,5 +1,8 @@
 package addict
 
+/**
+ * Annotation for injecting values.
+ */
 @Retention(AnnotationRetention.RUNTIME)
-@Target(AnnotationTarget.PROPERTY)
+@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.PROPERTY)
 annotation class Value(val value: String)
