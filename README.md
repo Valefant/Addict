@@ -39,7 +39,7 @@ When the module does not exist it will be created automatically.
 
 ### Binding
 Interfaces and implementations are bound programmatically.
-The signature of the function to do this looks like this
+The signature of the function to do this is the following
 ```kotlin
 fun <I : Any> bind(kInterface: KClass<I>, kClass: KClass<out I>, scope: Scope = Scope.SINGLETON)
 ``` 
@@ -77,7 +77,6 @@ After the container instantiated a class, the annotated function is executed.
 Every property is available within the function context.
 
 ### ToDo
-- [] Injecting values with different types other than strings
-- [] Injecting values for constructor parameters 
-which seems only possible by using site targets when working with Kotlin reflection
-- [] Detecting circular dependencies
+- [ ] Support injecting values with different types other than strings
+- [ ] Support injecting values for constructor parameters which seems only possible by using site targets when working with Kotlin reflection
+- [ ] Detecting circular dependencies
