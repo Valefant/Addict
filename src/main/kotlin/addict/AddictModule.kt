@@ -18,7 +18,7 @@ import kotlin.reflect.jvm.jvmErasure
 /**
  * Represents a module to separate environments within the Addict container.
  */
-class AddictModule(private val properties: Map<String, Any>){
+internal class AddictModule(private val properties: Map<String, Any>){
     /**
      * The bindings of interfaces to classes.
      */
