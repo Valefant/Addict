@@ -22,22 +22,22 @@ internal class AddictModule(private val properties: Map<String, Any>){
     /**
      * The bindings of interfaces to classes.
      */
-    val bindings = mutableMapOf<KClass<*>, KClass<*>>()
+    private val bindings = mutableMapOf<KClass<*>, KClass<*>>()
 
     /**
      * Scoping of the binding classes.
      */
-    val scopes = mutableMapOf<KClass<*>, Scope>()
+    private val scopes = mutableMapOf<KClass<*>, Scope>()
 
     /**
      * Collection of singletons which get instantiated for the selected module.
      */
-    val singletons = mutableMapOf<KClass<*>, Any>()
+    private val singletons = mutableMapOf<KClass<*>, Any>()
 
     /**
      * Track classes which are wired to a requested object for the circular dependency detection.
      */
-    var seen = mutableSetOf<KClass<*>>()
+    private var seen = mutableSetOf<KClass<*>>()
 
     /**
      * Binding on module level.
@@ -50,17 +50,17 @@ internal class AddictModule(private val properties: Map<String, Any>){
     /**
      * Entry point for the assembling to take place.
      */
-    inline fun <reified T : Any> assemble(): T {
+    fun <T : Any> assemble(kClass: KClass<T>): T {
         // the circular dependency detection takes place for one instance
         seen.clear()
 
         // resolving needs to be done here because the singleton map contains the implementation
-        val kClass = resolveBinding(T::class)
-        if (scopes[kClass] == Scope.SINGLETON && kClass in singletons) {
-            return singletons[kClass] as T
+        val resolvedRootClass = resolveBinding(kClass)
+        if (scopes[resolvedRootClass] == Scope.SINGLETON && resolvedRootClass in singletons) {
+            return singletons[resolvedRootClass] as T
         }
 
-        return assembleInternal(kClass)
+        return assembleInternal(resolvedRootClass)
     }
 
     /**
@@ -68,7 +68,8 @@ internal class AddictModule(private val properties: Map<String, Any>){
      * @param kClass By using the class we can avoid to inline the class and therefore not using private members.
      * @return The requested type with all the dependencies injected
      */
-    fun <T : Any> assembleInternal(kClass: KClass<*>): T {
+    private fun <T : Any> assembleInternal(kClass: KClass<*>): T {
+        // the resolving needs here still to be done because of the recursion
         val resolvedKClass = resolveBinding(kClass)
 
         if (resolvedKClass in seen) {
@@ -147,7 +148,7 @@ internal class AddictModule(private val properties: Map<String, Any>){
      * @param kClass The class to check the binding for
      * @return The resolved class to continue work with
      */
-    fun resolveBinding(kClass: KClass<*>): KClass<*> {
+    private fun resolveBinding(kClass: KClass<*>): KClass<*> {
         isPartOfBindings(kClass)
         return bindings[kClass] ?: kClass
     }

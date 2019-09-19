@@ -60,7 +60,8 @@ inline fun <reified T : Any> assemble(): T
 In Java there is only the possibility to give the Class as parameter to retain the information during the runtime.
 The api would therefore be used in this way ``assemble(Example.class)``.
 The keyword ``reified`` is new to Kotlin and allows us to use the api in a C# like way ``assemble<Example>()``.
-For this to work it can only be used by ``inline`` functions.
+
+If you prefer the Java way you can use still use the function in this way ``assemble(Example::class)``
 
 ### Properties
 The property source file is read from the resource folder and is applied in this way
@@ -73,7 +74,7 @@ The syntax for the property file is simple
 ```properties
 # Comment
 
-# Assigning a key and a value
+# Setting a property with key=value
 example.hello=Hello
 
 # Interpolation is done with ${name}

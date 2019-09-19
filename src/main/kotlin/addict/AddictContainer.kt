@@ -13,6 +13,16 @@ class AddictContainer {
     val properties = mutableMapOf<String, Any>()
 
     /**
+     * Modules provide a separation for the bindings.
+     */
+    private val modules = mutableMapOf<String, AddictModule>()
+
+    /**
+     * The current active module.
+     */
+    private var activeModule: AddictModule = modules.getOrPut(DEFAULT_MODULE) { AddictModule(properties) }
+
+    /**
      * Reads properties from a source and makes them available to the container instance.
      * Property File Syntax: key=value
      * @param name The name of the property source
@@ -38,16 +48,6 @@ class AddictContainer {
                 properties[key] = resolved
             }
     }
-
-    /**
-     * Modules provide a separation for the bindings.
-     */
-    private val modules = mutableMapOf<String, AddictModule>()
-
-    /**
-     * The current active module.
-     */
-    var activeModule: AddictModule = modules.getOrPut(DEFAULT_MODULE) { AddictModule(properties) }
 
     /**
      * Changes the module of the current container instance.
@@ -76,10 +76,19 @@ class AddictContainer {
 
     /**
      * Assembles an object with all its dependencies.
-     * @return The type T which you have specified
+     * @return The type T which is specified
      */
     inline fun <reified T : Any> assemble(): T {
-        return activeModule.assemble()
+        return assemble(T::class)
+    }
+
+    /**
+     * Assembles an object with all its dependencies.
+     * @param kClass The class to assemble
+     * @return The type T which is specified
+     */
+    fun <T : Any> assemble(kClass: KClass<T>): T {
+        return activeModule.assemble(kClass)
     }
 
     companion object {
