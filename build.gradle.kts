@@ -2,9 +2,10 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "1.3.50"
+    maven
 }
 
-group = "ioc-container"
+group = "com.github.Valefant"
 version = "1.0-SNAPSHOT"
 
 repositories {
