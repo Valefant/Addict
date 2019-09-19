@@ -1,5 +1,6 @@
 package addict
 
+import addict.exceptions.CircularDependencyDetectedException
 import addict.exceptions.NoBindingFoundException
 import addict.exceptions.SameBindingNotAllowedException
 import org.hamcrest.CoreMatchers
@@ -27,6 +28,9 @@ class AddictContainerTest {
     interface ServiceExample {
         var test: String
     }
+
+    interface Loop
+    class LoopImpl @Inject constructor(val serviceA: ServiceA, val loop: Loop) : Loop
 
     class ServiceExampleImpl : ServiceExample {
         @Value("example.text")
@@ -106,7 +110,7 @@ class AddictContainerTest {
 
     @Test
     fun testScoping() {
-        val container = AddictContainer().apply { propertySource("application.properties") }
+        val container = AddictContainer()
         container.bind(ServiceA::class, AnotherServiceAImpl::class)
         val serviceA = container.assemble<ServiceA>()
         val sameServiceA = container.assemble<ServiceA>()
@@ -129,12 +133,18 @@ class AddictContainerTest {
         }
         val serviceExample = container.assemble<ServiceExample>()
         MatcherAssert.assertThat(serviceExample, CoreMatchers.instanceOf(ServiceExampleImpl::class.java))
-        MatcherAssert.assertThat(serviceExample.test, Matchers.equalTo("hello world!"))
+        MatcherAssert.assertThat(serviceExample.test, Matchers.equalTo("Hello World!"))
+    }
+
+    @Test
+    fun testPropertyInterpolation() {
+        val container = AddictContainer().apply { propertySource("application.properties") }
+        MatcherAssert.assertThat(container.properties["example.greet"] as String, Matchers.equalTo("Hello John Doe"))
     }
 
     @Test
     fun testPostCreationAnnotation() {
-        val container = AddictContainer().apply { propertySource("application.properties") }
+        val container = AddictContainer()
         container.apply {
             bind(ServiceExample::class, AnotherServiceExampleImpl::class)
         }
@@ -151,6 +161,15 @@ class AddictContainerTest {
 
     @Test
     fun testDetectingCircularDependencies() {
+        val container = AddictContainer()
+        container.apply {
+            bind(ServiceA::class, ServiceAImpl::class)
+            bind(ServiceB::class, ServiceBImpl::class)
+            bind(ServiceC::class, ServiceCImpl::class)
+            bind(Loop::class, LoopImpl::class)
+        }
 
+        assertThrows<CircularDependencyDetectedException> { container.assemble<Loop>() }
+        assertThrows<CircularDependencyDetectedException> { container.assemble<LoopImpl>() }
     }
 }

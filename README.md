@@ -33,7 +33,7 @@ Addict supports modules to provide a separation of the context you are working o
 When instantiating the container a default module is provided.
 Changing a module is straightforward 
 ```kotlin
-container.changeModule("module-a")
+container.changeModule("newModule")
 ```
 When the module does not exist it will be created automatically.
 
@@ -69,7 +69,16 @@ val container = AddictContainer().apply { propertySource("application.properties
 ```
 A ``@Value`` annotation is provided for injecting values during the object creation
 as you may know it from projects like Spring.
-The syntax for the property file is simple as it consists only of ``key=value``.
+The syntax for the property file is simple
+```properties
+# Comment
+
+# Assigning a key and a value
+example.hello=Hello
+
+# Interpolation is done with ${name}
+example.greet=${example.hello} World!
+```
 
 ### Life cycle
 ``@PostConstruct`` annotation is supported.

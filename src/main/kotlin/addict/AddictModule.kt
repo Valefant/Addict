@@ -1,5 +1,6 @@
 package addict
 
+import addict.exceptions.CircularDependencyDetectedException
 import addict.exceptions.NoBindingFoundException
 import addict.exceptions.PropertyDoesNotExistException
 import javax.annotation.PostConstruct
@@ -21,7 +22,7 @@ class AddictModule(private val properties: Map<String, Any>){
     /**
      * The bindings of interfaces to classes.
      */
-    private val bindings = mutableMapOf<KClass<*>, KClass<*>>()
+    val bindings = mutableMapOf<KClass<*>, KClass<*>>()
 
     /**
      * Scoping of the binding classes.
@@ -32,6 +33,11 @@ class AddictModule(private val properties: Map<String, Any>){
      * Collection of singletons which get instantiated for the selected module.
      */
     val singletons = mutableMapOf<KClass<*>, Any>()
+
+    /**
+     * Track classes which are wired to a requested object for the circular dependency detection.
+     */
+    var seen = mutableSetOf<KClass<*>>()
 
     /**
      * Binding on module level.
@@ -45,6 +51,9 @@ class AddictModule(private val properties: Map<String, Any>){
      * Entry point for the assembling to take place.
      */
     inline fun <reified T : Any> assemble(): T {
+        // the circular dependency detection takes place for one instance
+        seen.clear()
+
         // resolving needs to be done here because the singleton map contains the implementation
         val kClass = resolveBinding(T::class)
         if (scopes[kClass] == Scope.SINGLETON && kClass in singletons) {
@@ -61,10 +70,17 @@ class AddictModule(private val properties: Map<String, Any>){
      */
     fun <T : Any> assembleInternal(kClass: KClass<*>): T {
         val resolvedKClass = resolveBinding(kClass)
+
+        if (resolvedKClass in seen) {
+            throw CircularDependencyDetectedException("Detected a circular dependency: ${kClass.qualifiedName}")
+        }
+
+        seen.add(resolvedKClass)
+
         val constructor = resolvedKClass.primaryConstructor ?: resolvedKClass.constructors.first()
         val params = constructor.parameters
 
-        // when no annotation or parameter is there we can create the instance without further work
+        // when no annotation or parameter is found we can create the instance without further work
         if (constructor.findAnnotation<Inject>() == null || params.isEmpty()) {
             return createInstance(constructor, emptyArray())
         }

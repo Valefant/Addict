@@ -10,7 +10,7 @@ class AddictContainer {
     /**
      * Contains the parsed keys and values of the property source file.
      */
-    private val properties = mutableMapOf<String, Any>()
+    val properties = mutableMapOf<String, Any>()
 
     /**
      * Reads properties from a source and makes them available to the container instance.
@@ -19,10 +19,24 @@ class AddictContainer {
      */
     fun propertySource(name: String) {
         val text = this::class.java.classLoader.getResource(name)?.readText()
-        text?.lines()?.forEach { line ->
-            val (key, value) = line.split("=")
-            properties[key] = value
-        }
+        text
+            ?.lines()
+            ?.forEach { line ->
+                if (line.isEmpty() || line.trim().startsWith("#")) return@forEach
+                val (key, value) = line.split("=").map { it.trim() }
+                val resolved =
+                    value
+                        .split(" ")
+                        .map {
+                            if (it.startsWith("\${") && it.endsWith("}"))
+                                properties[it.substringAfter("{").substringBefore("}")]
+                            else
+                                it
+                        }
+                        .joinToString(separator=" ")
+
+                properties[key] = resolved
+            }
     }
 
     /**
