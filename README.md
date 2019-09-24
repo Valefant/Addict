@@ -88,5 +88,5 @@ Every property is available within the function context.
 
 ### ToDo
 - [ ] Support injecting values with different types other than strings
+- [ ] Support injecting default values when the property key cannot be found
 - [ ] Support injecting values for constructor parameters which seems only possible by using site targets when working with Kotlin reflection
-- [ ] Detecting circular dependencies
