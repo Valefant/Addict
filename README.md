@@ -17,7 +17,7 @@ class BImpl : B
 class ExampleImpl @Inject constructor(val a: A, val b: B): Example
 
 fun main() {
-    val container = AddictContainer() {
+    val container = AddictContainer().apply {
         bind(A::class, AImpl::class)
         bind(B::class, BImpl::class)
         bind(Example::class, ExampleImpl::class)
