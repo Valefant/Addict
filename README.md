@@ -92,4 +92,6 @@ Every property is available within the function context.
 ### ToDo
 - [x] Detecting circular dependencies
 - [ ] Make property injection and post construct available by code``
-    - This results in supporting other types than strings and not depending only on annotations.
+    - Therefore we are not only depending on annotations. 
+    Additionally we can then support default values and other types than strings for the property injection. 
+    
