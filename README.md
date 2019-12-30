@@ -17,8 +17,7 @@ class BImpl : B
 class ExampleImpl @Inject constructor(val a: A, val b: B): Example
 
 fun main() {
-    val container = AddictContainer()
-    container.apply {
+    val container = AddictContainer() {
         bind(A::class, AImpl::class)
         bind(B::class, BImpl::class)
         bind(Example::class, ExampleImpl::class)
@@ -63,22 +62,26 @@ The keyword ``reified`` is new to Kotlin and allows us to use the api in a C# li
 
 If you prefer the Java way you can use still use the function in this way ``assemble(Example::class)``
 
-### Properties
-The property source file is read from the resource folder and is applied in this way
+### Java Properties Source
+The property source is read from the resource folder and is applied in this way
 ```kotlin
 val container = AddictContainer().apply { propertySource("application.properties") }
 ```
 A ``@Value`` annotation is provided for injecting values during the object creation
 as you may know it from projects like Spring.
-The syntax for the property file is simple
+
+#### Additions
+As known from other frameworks I added support for string interpolation
+
+Here is a small example
 ```properties
 # Comment
 
 # Setting a property with key=value
 example.hello=Hello
 
-# Interpolation is done with ${name}
-example.greet=${example.hello} World!
+# Interpolation is done via ${name}
+example.greet=${example.hello} John!
 ```
 
 ### Life cycle
@@ -87,6 +90,6 @@ After the container instantiated a class, the annotated function is executed.
 Every property is available within the function context.
 
 ### ToDo
-- [ ] Support injecting values with different types other than strings
-- [ ] Support injecting values for constructor parameters which seems only possible by using site targets when working with Kotlin reflection
-- [ ] Detecting circular dependencies
+- [x] Detecting circular dependencies
+- [ ] Make property injection and post construct available by code``
+    - This results in supporting other types than strings and not depending only on annotations.
