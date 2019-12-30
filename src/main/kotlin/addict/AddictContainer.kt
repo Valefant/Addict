@@ -1,6 +1,8 @@
 package addict
 
+import addict.exceptions.InterpolationException
 import addict.exceptions.SameBindingNotAllowedException
+import java.util.*
 import kotlin.reflect.KClass
 
 /**
@@ -28,25 +30,28 @@ class AddictContainer {
      * @param name The name of the property source
      */
     fun propertySource(name: String) {
-        val text = this::class.java.classLoader.getResource(name)?.readText()
-        text
-            ?.lines()
-            ?.forEach { line ->
-                if (line.isEmpty() || line.trim().startsWith("#")) return@forEach
-                val (key, value) = line.split("=").map { it.trim() }
-                val resolved =
-                    value
-                        .split(" ")
-                        .map {
-                            if (it.startsWith("\${") && it.endsWith("}"))
-                                properties[it.substringAfter("{").substringBefore("}")]
-                            else
-                                it
-                        }
-                        .joinToString(separator=" ")
+        // kotlins let is used because we need the context of `this` for the classloader
+        val unresolvedProperties = Properties().let {
+            it.load(this::class.java.classLoader.getResourceAsStream(name))
+            // can be safely casted as the initial keys and values are available as strings
+            it.toMap() as Map<String, String>
+        }
 
-                properties[key] = resolved
-            }
+        unresolvedProperties
+        .mapValues { property ->
+            property
+            .value
+            .split(" ")
+            .map { word->
+                // matches following expressions ${example} ${example.name}
+                val regex = """\$\{(\w+(?:\.\w+)*)}""".toRegex()
+
+                regex.find(word)?.let {
+                    val variable = it.destructured.component1()
+                    unresolvedProperties[variable] ?: InterpolationException("$variable does not exist in $name")
+                } ?: word
+            }.joinToString(" ")
+        }.also { properties.putAll(it) }
     }
 
     /**
@@ -91,6 +96,9 @@ class AddictContainer {
         return activeModule.assemble(kClass)
     }
 
+    /**
+     * CONSTANTS
+     */
     companion object {
         const val DEFAULT_MODULE = "default"
     }
