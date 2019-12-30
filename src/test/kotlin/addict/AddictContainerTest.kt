@@ -2,9 +2,10 @@ package addict
 
 import addict.exceptions.CircularDependencyDetectedException
 import addict.exceptions.NoBindingFoundException
+import addict.exceptions.PropertyDoesNotExistException
 import addict.exceptions.SameBindingNotAllowedException
 import org.hamcrest.CoreMatchers
-import org.hamcrest.MatcherAssert
+import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -25,12 +26,12 @@ class AddictContainerTest {
     class ServiceCImpl : ServiceC
     class AnotherServiceCImpl : ServiceC
 
+    interface Loop
+    class LoopImpl @Inject constructor(val serviceA: ServiceA, val loop: Loop) : Loop
+
     interface ServiceExample {
         var test: String
     }
-
-    interface Loop
-    class LoopImpl @Inject constructor(val serviceA: ServiceA, val loop: Loop) : Loop
 
     class ServiceExampleImpl : ServiceExample {
         @Value("example.text")
@@ -52,6 +53,11 @@ class AddictContainerTest {
         }
     }
 
+    class DoomedServiceExampleImpl : ServiceExample {
+        @Value("this.does.not.exist")
+        override lateinit var test: String
+    }
+
     @Test
     fun testDependencyGraph() {
         val container = AddictContainer()
@@ -61,15 +67,15 @@ class AddictContainerTest {
             bind(ServiceC::class, AnotherServiceCImpl::class)
         }
         val serviceA = container.assemble<ServiceA>()
-        MatcherAssert.assertThat(serviceA, CoreMatchers.instanceOf(ServiceAImpl::class.java))
+        assertThat(serviceA, CoreMatchers.instanceOf(ServiceAImpl::class.java))
 
         val serviceAImpl = container.assemble<ServiceAImpl>()
-        MatcherAssert.assertThat(serviceAImpl, CoreMatchers.instanceOf(ServiceAImpl::class.java))
-        MatcherAssert.assertThat(serviceAImpl.serviceB, CoreMatchers.instanceOf(ServiceBImpl::class.java))
+        assertThat(serviceAImpl, CoreMatchers.instanceOf(ServiceAImpl::class.java))
+        assertThat(serviceAImpl.serviceB, CoreMatchers.instanceOf(ServiceBImpl::class.java))
 
         val serviceBImpl = container.assemble<ServiceBImpl>()
-        MatcherAssert.assertThat(serviceBImpl, CoreMatchers.instanceOf(ServiceBImpl::class.java))
-        MatcherAssert.assertThat(serviceBImpl.serviceC, CoreMatchers.instanceOf(AnotherServiceCImpl::class.java))
+        assertThat(serviceBImpl, CoreMatchers.instanceOf(ServiceBImpl::class.java))
+        assertThat(serviceBImpl.serviceC, CoreMatchers.instanceOf(AnotherServiceCImpl::class.java))
     }
 
     @Test
@@ -82,12 +88,12 @@ class AddictContainerTest {
         }
 
         val serviceAImpl = container.assemble<ServiceAImpl>()
-        MatcherAssert.assertThat(serviceAImpl, CoreMatchers.instanceOf(ServiceAImpl::class.java))
-        MatcherAssert.assertThat(serviceAImpl.serviceB, CoreMatchers.instanceOf(ServiceBImpl::class.java))
+        assertThat(serviceAImpl, CoreMatchers.instanceOf(ServiceAImpl::class.java))
+        assertThat(serviceAImpl.serviceB, CoreMatchers.instanceOf(ServiceBImpl::class.java))
 
         val serviceBImpl = container.assemble<ServiceBImpl>()
-        MatcherAssert.assertThat(serviceBImpl, CoreMatchers.instanceOf(ServiceBImpl::class.java))
-        MatcherAssert.assertThat(serviceBImpl.serviceC, CoreMatchers.instanceOf(AnotherServiceCImpl::class.java))
+        assertThat(serviceBImpl, CoreMatchers.instanceOf(ServiceBImpl::class.java))
+        assertThat(serviceBImpl.serviceC, CoreMatchers.instanceOf(AnotherServiceCImpl::class.java))
 
         container.changeModule("newModule")
 
@@ -99,11 +105,11 @@ class AddictContainerTest {
 
         assertThrows<NoBindingFoundException> { container.assemble<ServiceAImpl>() }
 
-        MatcherAssert.assertThat(
+        assertThat(
             container.assemble<ServiceA>(),
             CoreMatchers.instanceOf(AnotherServiceAImpl::class.java))
 
-        MatcherAssert.assertThat(
+        assertThat(
             container.assemble<ServiceB>(),
             CoreMatchers.instanceOf(AnotherServiceBImpl::class.java))
     }
@@ -114,15 +120,15 @@ class AddictContainerTest {
         container.bind(ServiceA::class, AnotherServiceAImpl::class)
         val serviceA = container.assemble<ServiceA>()
         val sameServiceA = container.assemble<ServiceA>()
-        MatcherAssert.assertThat(serviceA, CoreMatchers.instanceOf(AnotherServiceAImpl::class.java))
-        MatcherAssert.assertThat(sameServiceA, CoreMatchers.instanceOf(AnotherServiceAImpl::class.java))
-        MatcherAssert.assertThat(serviceA, CoreMatchers.sameInstance(sameServiceA))
+        assertThat(serviceA, CoreMatchers.instanceOf(AnotherServiceAImpl::class.java))
+        assertThat(sameServiceA, CoreMatchers.instanceOf(AnotherServiceAImpl::class.java))
+        assertThat(serviceA, CoreMatchers.sameInstance(sameServiceA))
 
         container.bind(ServiceB::class, AnotherServiceBImpl::class, Scope.NEW_INSTANCE)
         val serviceB = container.assemble<ServiceB>()
         val newServiceB = container.assemble<ServiceB>()
-        MatcherAssert.assertThat(serviceB, CoreMatchers.instanceOf(AnotherServiceBImpl::class.java))
-        MatcherAssert.assertThat(serviceB, CoreMatchers.not(CoreMatchers.sameInstance(newServiceB)))
+        assertThat(serviceB, CoreMatchers.instanceOf(AnotherServiceBImpl::class.java))
+        assertThat(serviceB, CoreMatchers.not(CoreMatchers.sameInstance(newServiceB)))
     }
 
     @Test
@@ -132,14 +138,26 @@ class AddictContainerTest {
             bind(ServiceExample::class, ServiceExampleImpl::class)
         }
         val serviceExample = container.assemble<ServiceExample>()
-        MatcherAssert.assertThat(serviceExample, CoreMatchers.instanceOf(ServiceExampleImpl::class.java))
-        MatcherAssert.assertThat(serviceExample.test, Matchers.equalTo("Hello World!"))
+        assertThat(serviceExample, CoreMatchers.instanceOf(ServiceExampleImpl::class.java))
+        assertThat(serviceExample.test, Matchers.equalTo("Hello World!"))
     }
 
     @Test
     fun testPropertyInterpolation() {
         val container = AddictContainer().apply { propertySource("application.properties") }
-        MatcherAssert.assertThat(container.properties["example.greet"] as String, Matchers.equalTo("Hello John Doe"))
+        assertThat(container.properties["example.greet"] as String, Matchers.equalTo("Hello John Doe"))
+    }
+
+    @Test
+    fun testPropertyDoesNotExist() {
+        val container = AddictContainer().apply {
+            propertySource("application.properties")
+            bind(ServiceExample::class, DoomedServiceExampleImpl::class)
+        }
+
+        assertThrows<PropertyDoesNotExistException> {
+            container.assemble<ServiceExample>()
+        }
     }
 
     @Test
@@ -149,12 +167,12 @@ class AddictContainerTest {
             bind(ServiceExample::class, AnotherServiceExampleImpl::class)
         }
         val serviceExample = container.assemble<ServiceExample>()
-        MatcherAssert.assertThat(serviceExample, CoreMatchers.instanceOf(AnotherServiceExampleImpl::class.java))
-        MatcherAssert.assertThat(serviceExample.test, Matchers.equalTo("changed"))
+        assertThat(serviceExample, CoreMatchers.instanceOf(AnotherServiceExampleImpl::class.java))
+        assertThat(serviceExample.test, Matchers.equalTo("changed"))
     }
 
     @Test
-    fun testSameBinding() {
+    fun testEqualBinding() {
         val container = AddictContainer()
         assertThrows<SameBindingNotAllowedException> { container.bind(ServiceA::class, ServiceA::class) }
     }
