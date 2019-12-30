@@ -1,4 +1,4 @@
-# Addict
+# Addict [![](https://jitpack.io/v/Valefant/Addict.svg)](https://jitpack.io/#Valefant/Addict)
 This is the name of the Inversion of Control (IoC) container I am developing for learning purposes.
 The binding between the the interfaces and implementation is done via code.
 By using the javax ``@Inject`` annotation on the constructor the container starts building the dependency graph.
