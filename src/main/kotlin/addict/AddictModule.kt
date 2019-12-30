@@ -119,13 +119,9 @@ internal class AddictModule(private val properties: Map<String, Any>){
             .map { property -> property to property.findAnnotation<Value>() }
             .forEach { (property, annotation) ->
                 property.isAccessible = true
-                if (annotation?.value != null) {
-                    if (properties[annotation.value] == null) {
-                        throw PropertyDoesNotExistException(
-                            "Property ${annotation.value} does not exist within the property source file")
-                    }
-
-                    property.setter.call(instance, properties[annotation.value])
+                annotation?.value?.let {
+                    properties[it] ?: throw PropertyDoesNotExistException("Property $it does not exist within the property source file")
+                    property.setter.call(instance, properties[it])
                 }
             }
     }
