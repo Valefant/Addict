@@ -1,12 +1,12 @@
 package addict
 
+import addict.exceptions.EqualBindingNotAllowedException
 import addict.exceptions.InterpolationException
-import addict.exceptions.SameBindingNotAllowedException
 import java.util.*
 import kotlin.reflect.KClass
 
 /**
- * Basic IoC container
+ * Basic IoC container with module capabilities.
  */
 class AddictContainer {
     /**
@@ -25,12 +25,12 @@ class AddictContainer {
     private var activeModule: AddictModule = modules.getOrPut(DEFAULT_MODULE) { AddictModule(properties) }
 
     /**
-     * Reads properties from a source and makes them available to the container instance.
-     * Property File Syntax: key=value
+     * Reads a properties file from the resource folder and makes them available to the container instance.
+     * The default file to look for is "application.properties".
      * @param name The name of the property source
      */
-    fun propertySource(name: String) {
-        // kotlins let is used because we need the context of `this` for the classloader
+    fun readPropertySource(name: String = "application.properties") {
+        // kotlin let is used because we need the context of `this` for the classloader
         val unresolvedProperties = Properties().let {
             it.load(this::class.java.classLoader.getResourceAsStream(name))
             // can be safely casted as the initial keys and values are available as strings
@@ -43,7 +43,7 @@ class AddictContainer {
             .value
             .split(" ")
             .map { word->
-                // matches following expressions ${example} ${example.name}
+                // matches following expressions ${example}, ${example.name} ...
                 val regex = """\$\{(\w+(?:\.\w+)*)}""".toRegex()
 
                 regex.find(word)?.let {
@@ -69,18 +69,19 @@ class AddictContainer {
      * Note: Using the same binding with another implementation will overwrite it.
      * @param kInterface The interface to bind for the [activeModule]
      * @param kClass The class which implements the interface
-     * @param scope Scope of the binding
+     * @param scope Scoping of the binding
      */
-    fun <I : Any> bind(kInterface: KClass<I>, kClass: KClass<out I>, scope: Scope = Scope.SINGLETON) {
+    fun <I : Any, C> bind(kInterface: KClass<I>, kClass: KClass<C>, properties: Map<String, Any> = emptyMap(), scope: Scope = Scope.SINGLETON) where C : I {
         if (kInterface == kClass) {
-            throw SameBindingNotAllowedException("You cannot bind to the same instance of ${kInterface.qualifiedName}")
+            throw EqualBindingNotAllowedException("You cannot bind to the same instance of ${kInterface.qualifiedName}")
         }
 
-        activeModule.bind(kInterface, kClass, scope)
+        activeModule.bind(kInterface, kClass, properties, scope)
     }
 
     /**
      * Assembles an object with all its dependencies.
+     * The type is provided within the angle brackets.
      * @return The type T which is specified
      */
     inline fun <reified T : Any> assemble(): T {
@@ -89,7 +90,7 @@ class AddictContainer {
 
     /**
      * Assembles an object with all its dependencies.
-     * @param kClass The class to assemble
+     * @param kClass The class provides the type to assemble.
      * @return The type T which is specified
      */
     fun <T : Any> assemble(kClass: KClass<T>): T {
