@@ -1,28 +1,27 @@
 # Addict [![](https://jitpack.io/v/Valefant/Addict.svg)](https://jitpack.io/#Valefant/Addict)
 This is the name of the Inversion of Control (IoC) container I am developing for learning purposes.
-The binding between the the interfaces and implementation is done via code.
-By using the javax ``@Inject`` annotation on the constructor the container starts building the dependency graph.
+The binding between the interfaces and implementations are done via code.
+Injection takes place at the constructor site.
 
 ## Example
-A basic example showing how to use it.
+Here is a basic example showing you how to use the api
 ```kotlin
-import javax.inject.Inject
-
 interface A
 interface B
 interface Example
 
 class AImpl : A
 class BImpl : B
-class ExampleImpl @Inject constructor(val a: A, val b: B): Example
+class ExampleImpl constructor(val a: A, val b: B) : Example
 
 fun main() {
     val container = AddictContainer().apply {
         bind(A::class, AImpl::class)
         bind(B::class, BImpl::class)
         bind(Example::class, ExampleImpl::class)
-    }
+    } 
     val example = container.assemble<Example>()
+    // example is now a valid instantiated object and ready to use
 }
 ```
 For further examples you can have a look at the tests.
@@ -38,13 +37,18 @@ When the module does not exist it will be created automatically.
 
 ### Binding
 Interfaces and implementations are bound programmatically.
-The signature of the function to do this is the following
+The signature of the function to achieve this is the following
 ```kotlin
-fun <I : Any> bind(kInterface: KClass<I>, kClass: KClass<out I>, scope: Scope = Scope.SINGLETON)
+fun <I : Any, C> bind(
+    kInterface: KClass<I>, 
+    kClass: KClass<C>, 
+    properties: Map<String, Any> = emptyMap(), 
+    scope: Scope = Scope.SINGLETON
+) where C : I
 ``` 
-The type parameter ``I`` can be any class. 
-Only interfaces can be bound to classes as ``<out I>`` will only accept supertypes of ``<I>`` 
-which is therefore implementing the interface.
+The type parameter ``I`` refers to the interface and can be of ``Any`` type.<br> 
+The type parameter ``C`` refers to the implementing class.<br>
+The ``where`` statement makes sure that ``<C>`` the class implements only``<I>`` the interface. 
 
 #### Scoping
 By default the requested instances are Singletons.
@@ -63,35 +67,57 @@ The keyword ``reified`` is new to Kotlin and allows us to use the api in a C# li
 If you prefer the Java way you can use still use the function in this way ``assemble(Example::class)``
 
 ### Java Properties Source
-The property source is read from the resource folder and is applied in this way
+The property source is read from the resource folder and is applied in this manner
 ```kotlin
-val container = AddictContainer().apply { propertySource("application.properties") }
+AddictContainer().apply { propertySource("staging.properties") }
 ```
-A ``@Value`` annotation is provided for injecting values during the object creation
-as you may know it from projects like Spring.
 
 #### Additions
-As known from other frameworks I added support for string interpolation
+As known from other frameworks I added the support for string interpolation
 
 Here is a small example
 ```properties
-# Comment
-
 # Setting a property with key=value
-example.hello=Hello
+example.name=John
+example.surname=Doe
 
-# Interpolation is done via ${name}
-example.greet=${example.hello} John!
+# Interpolation is done via ${key}
+example.greet=Hello ${example.name} ${example.surname}
+# example.greet=Hello John Doe
 ```
 
-### Life cycle
-``@PostConstruct`` annotation is supported.
-After the container instantiated a class, the annotated function is executed.
-Every property is available within the function context.
+### Injecting values
+```kotlin 
+interface Foo
+class FooImpl(
+    val n: Int,
+    val greet: String? = "Hi",
+    val pair: Pair<Char, Char>,
+    val list: List<Int> = listOf(5, 6, 7, 8)
+) : Foo
+
+val props = mapOf(
+    "n"     to 42,
+    "greet" to properties.getOrElse("example.greet") { "We are doomed!" },
+    "pair"  to Pair('a', 'z')
+)
+
+container.bind(Foo::class, FooImpl::class, props)
+```
+The properties for the ``FooImpl`` are provided by the ``props`` map.
+Default class values don't need to be provided but they can be overwritten if you like.
+
+### Lifecycle
+Addict provides an interface [Lifecycle](src/main/kotlin/addict/Lifecycle.kt)
+with functions to execute during the lifetime of an object within the container context.
+
+#### PostCreationHook
+After the container instantiated a class this function will be executed.
+Every property of the class is available within this function context.
 
 ### ToDo
 - [x] Detecting circular dependencies
-- [ ] Make property injection and post construct available by code``
+- [x] Make property injection and post construct available by code
     - Therefore we are not only depending on annotations. 
     Additionally we can then support default values and other types than strings for the property injection. 
     

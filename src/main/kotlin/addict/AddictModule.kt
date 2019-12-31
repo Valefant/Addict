@@ -2,17 +2,11 @@ package addict
 
 import addict.exceptions.CircularDependencyDetectedException
 import addict.exceptions.NoBindingFoundException
-import addict.exceptions.PropertyDoesNotExistException
-import javax.annotation.PostConstruct
-import javax.inject.Inject
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
-import kotlin.reflect.KMutableProperty
-import kotlin.reflect.full.findAnnotation
+import kotlin.reflect.KParameter
 import kotlin.reflect.full.memberFunctions
-import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
-import kotlin.reflect.jvm.isAccessible
 import kotlin.reflect.jvm.jvmErasure
 
 /**
@@ -35,6 +29,11 @@ internal class AddictModule(private val properties: Map<String, Any>){
     private val singletons = mutableMapOf<KClass<*>, Any>()
 
     /**
+     * Collection of properties which are injected during the assemble process of the requested object.
+     */
+    private val propertiesForClass = mutableMapOf<KClass<*>, Map<String, Any>>()
+
+    /**
      * Track classes which are wired to a requested object for the circular dependency detection.
      */
     private var seen = mutableSetOf<KClass<*>>()
@@ -42,8 +41,14 @@ internal class AddictModule(private val properties: Map<String, Any>){
     /**
      * Binding on module level.
      */
-    fun <I : Any> bind(kInterface: KClass<I>, kClass: KClass<out I>, scope: Scope) {
+    fun <I : Any, C> bind(
+        kInterface: KClass<I>,
+        kClass: KClass<C>,
+        properties: Map<String, Any>,
+        scope: Scope
+    ) where C : I {
         bindings[kInterface] = kClass
+        propertiesForClass[kClass] = properties
         scopes[kClass] = scope
     }
 
@@ -51,16 +56,16 @@ internal class AddictModule(private val properties: Map<String, Any>){
      * Entry point for the assembling to take place.
      */
     fun <T : Any> assemble(kClass: KClass<T>): T {
-        // the circular dependency detection takes place for one instance
+        // the circular dependency detection takes place for each request
         seen.clear()
 
-        // resolving needs to be done here because the singleton map contains the implementation
+        // resolving needs to be done here because the singleton map could already contain the implementation
         val resolvedRootClass = resolveBinding(kClass)
-        if (scopes[resolvedRootClass] == Scope.SINGLETON && resolvedRootClass in singletons) {
-            return singletons[resolvedRootClass] as T
-        }
 
-        return assembleInternal(resolvedRootClass)
+        return if (scopes[resolvedRootClass] == Scope.SINGLETON && resolvedRootClass in singletons)
+            singletons[resolvedRootClass] as T
+        else
+            assembleInternal(resolvedRootClass)
     }
 
     /**
@@ -80,82 +85,72 @@ internal class AddictModule(private val properties: Map<String, Any>){
 
         val constructor = resolvedKClass.primaryConstructor ?: resolvedKClass.constructors.first()
         val params = constructor.parameters
-
-        // when no annotation or parameter is found we can create the instance without further work
-        if (constructor.findAnnotation<Inject>() == null || params.isEmpty()) {
-            return createInstance(constructor, emptyArray())
-        }
-
-        val args = params.map { assembleInternal<T>(it.type.jvmErasure) }
-        return createInstance(constructor, (args as ArrayList).toArray())
+        val args = params
+            .associateWith { param ->
+                propertiesForClass[resolvedKClass]?.let { properties ->
+                    val value = properties[param.name]
+                    if (param.isOptional) {
+                        /**
+                         * Optional parameters already have a value or we provide one.
+                         * `null` is in this case a valid value.
+                         * Therefore we have return to the caller lambda else the recursion will continue
+                         */
+                        return@associateWith value
+                    }
+                    value
+                } ?: assembleInternal<T>(param.type.jvmErasure)
+            }
+            .filterValues { it != null }
+        return instantiate(constructor, args)
     }
 
     /**
      * Creates an instance by calling the constructor of the given type T.
+     * Optional and mismatching values are handled by [KFunction.callBy].
      * @param constructor The constructor to call
-     * @param args The arguments to pass to the constructor
+     * @param args A map containing the parameter types and their respective values to pass to the constructor
      */
-    private fun <T : Any> createInstance(constructor: KFunction<*>, args: Array<Any>): T {
-        val instance = constructor.call(*args) as T
-        injectProperties(instance)
-        executePostConstruct(instance)
+    private fun <T : Any> instantiate(constructor: KFunction<*>, args: Map<KParameter, Any?>): T {
+        val instance = constructor.callBy(args) as T
+        invokePostCreationHook(instance)
 
-        if (scopes[instance::class] == Scope.SINGLETON) {
-            singletons[instance::class] = instance
+        val kClass = instance::class
+        if (scopes[kClass] == Scope.SINGLETON) {
+            singletons[kClass] = instance
         }
 
         return instance
     }
 
     /**
-     * Inject properties to the [instance] annotated with [@Value].
-     * @param instance The instance to inject the properties to
-     */
-    private fun <T : Any> injectProperties(instance: T) {
-        instance::class
-            .memberProperties
-            // setter can only be called on mutable properties
-            .filterIsInstance<KMutableProperty<*>>()
-            .map { property -> property to property.findAnnotation<Value>() }
-            .forEach { (property, annotation) ->
-                property.isAccessible = true
-                annotation?.value?.let {
-                    properties[it] ?: throw PropertyDoesNotExistException("Property $it does not exist within the property source file")
-                    property.setter.call(instance, properties[it])
-                }
-            }
-    }
-
-    /**
-     * Executes the member function annotated with [@PostConstruct].
+     * Invokes the member function [Lifecycle.postCreationHook]
      * @param instance The instance to call the function for
      */
-    private fun <T : Any> executePostConstruct(instance: T) {
+    private fun <T : Any> invokePostCreationHook(instance: T) {
         instance::class
-            .memberFunctions
-            .firstOrNull { function -> function.findAnnotation<PostConstruct>() != null }
-            ?.call(instance)
+        .memberFunctions
+        .firstOrNull { function -> function.name == "postCreationHook" }
+        // the instance is the first parameter of the function call
+        ?.call(instance)
     }
 
     /**
-     * The interface to class relation is setup in the binding process.
+     * The interface and the implementing class is setup in the binding process.
      * Therefore by requesting the assembly of an object you would use the interface to work with but it may not always be the case.
      * Thus the assemble function can also work by requesting only the implementation.
-     * @param kClass The class to check the binding for
+     * @param kClass The class to resolve the binding for
      * @return The resolved class to continue work with
      */
     private fun resolveBinding(kClass: KClass<*>): KClass<*> {
-        isPartOfBindings(kClass)
-        return bindings[kClass] ?: kClass
+        val resolvedClass = bindings[kClass] ?: kClass
+        if (resolvedClass.isInterface()) {
+            throw NoBindingFoundException("No binding could be found for ${resolvedClass.qualifiedName}")
+        }
+        return resolvedClass
     }
 
     /**
-     * Checks if [kClass] is part of the [bindings] map.
-     * @param kClass The interface or class to check for
+     * Convenient interface check for kotlin classes
      */
-    private fun isPartOfBindings(kClass: KClass<*>) {
-        if (!bindings.containsKey(kClass) && !bindings.containsValue(kClass)) {
-            throw NoBindingFoundException("No binding could be found for ${kClass.qualifiedName}")
-        }
-    }
+    private fun KClass<*>.isInterface() = this.java.isInterface
 }
