@@ -69,9 +69,15 @@ class AddictContainer {
      * Note: Using the same binding with another implementation will overwrite it.
      * @param kInterface The interface to bind for the [activeModule]
      * @param kClass The class which implements the interface
+     * @param properties The properties to inject into [kClass]
      * @param scope Scoping of the binding
      */
-    fun <I : Any, C> bind(kInterface: KClass<I>, kClass: KClass<C>, properties: Map<String, Any> = emptyMap(), scope: Scope = Scope.SINGLETON) where C : I {
+    fun <I : Any, C> bind(
+        kInterface: KClass<I>,
+        kClass: KClass<C>,
+        properties: Map<String, Any> = emptyMap(),
+        scope: Scope = Scope.SINGLETON
+    ) where C : I {
         if (kInterface == kClass) {
             throw EqualBindingNotAllowedException("You cannot bind to the same instance of ${kInterface.qualifiedName}")
         }

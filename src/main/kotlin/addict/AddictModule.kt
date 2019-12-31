@@ -41,7 +41,12 @@ internal class AddictModule(private val properties: Map<String, Any>){
     /**
      * Binding on module level.
      */
-    fun <I : Any, C> bind(kInterface: KClass<I>, kClass: KClass<C>, properties: Map<String, Any>, scope: Scope) where C : I {
+    fun <I : Any, C> bind(
+        kInterface: KClass<I>,
+        kClass: KClass<C>,
+        properties: Map<String, Any>,
+        scope: Scope
+    ) where C : I {
         bindings[kInterface] = kClass
         propertiesForClass[kClass] = properties
         scopes[kClass] = scope
@@ -54,13 +59,13 @@ internal class AddictModule(private val properties: Map<String, Any>){
         // the circular dependency detection takes place for each request
         seen.clear()
 
-        // resolving needs to be done here because the singleton map could contain the implementation
+        // resolving needs to be done here because the singleton map could already contain the implementation
         val resolvedRootClass = resolveBinding(kClass)
-        if (scopes[resolvedRootClass] == Scope.SINGLETON && resolvedRootClass in singletons) {
-            return singletons[resolvedRootClass] as T
-        }
 
-        return assembleInternal(resolvedRootClass)
+        return if (scopes[resolvedRootClass] == Scope.SINGLETON && resolvedRootClass in singletons)
+            singletons[resolvedRootClass] as T
+        else
+            assembleInternal(resolvedRootClass)
     }
 
     /**
@@ -96,21 +101,22 @@ internal class AddictModule(private val properties: Map<String, Any>){
                 } ?: assembleInternal<T>(param.type.jvmErasure)
             }
             .filterValues { it != null }
-        return createInstance(constructor, args)
+        return instantiate(constructor, args)
     }
 
     /**
      * Creates an instance by calling the constructor of the given type T.
      * Optional and mismatching values are handled by [KFunction.callBy].
      * @param constructor The constructor to call
-     * @param args The arguments to pass to the constructor
+     * @param args A map containing the parameter types and their respective values to pass to the constructor
      */
-    private fun <T : Any> createInstance(constructor: KFunction<*>, args: Map<KParameter, Any?>): T {
+    private fun <T : Any> instantiate(constructor: KFunction<*>, args: Map<KParameter, Any?>): T {
         val instance = constructor.callBy(args) as T
         invokePostCreationHook(instance)
 
-        if (scopes[instance::class] == Scope.SINGLETON) {
-            singletons[instance::class] = instance
+        val kClass = instance::class
+        if (scopes[kClass] == Scope.SINGLETON) {
+            singletons[kClass] = instance
         }
 
         return instance
@@ -124,6 +130,7 @@ internal class AddictModule(private val properties: Map<String, Any>){
         instance::class
         .memberFunctions
         .firstOrNull { function -> function.name == "postCreationHook" }
+        // the instance is the first parameter of the function call
         ?.call(instance)
     }
 
