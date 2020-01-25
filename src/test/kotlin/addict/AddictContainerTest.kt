@@ -86,13 +86,12 @@ class AddictContainerTest {
     @Test
     fun testDependencyGraph() {
         val container = AddictContainer().apply {
-            bind(ServiceA::class, ServiceAImpl::class)
-            bind(ServiceB::class, ServiceBImpl::class)
-            bind(ServiceC::class, ServiceCImpl::class)
+            bind<ServiceA, ServiceAImpl>()
+            bind<ServiceB, ServiceBImpl>()
+            bind<ServiceC, ServiceCImpl>()
         }
         val serviceA = container.assemble<ServiceA>()
         assertThat(serviceA, instanceOf(ServiceAImpl::class.java))
-
         val serviceAImpl = container.assemble<ServiceAImpl>()
         assertThat(serviceAImpl, instanceOf(ServiceAImpl::class.java))
         assertThat(serviceAImpl.serviceB, instanceOf(ServiceBImpl::class.java))
@@ -100,16 +99,16 @@ class AddictContainerTest {
         val serviceBImpl = container.assemble<ServiceBImpl>()
         assertThat(serviceBImpl, instanceOf(ServiceBImpl::class.java))
         assertThat(serviceBImpl.serviceC, instanceOf(ServiceCImpl::class.java))
-
+1 to 2
         assertThat(serviceA.answerToLife(), equalTo(42))
     }
 
     @Test
     fun testModules() {
         val container = AddictContainer().apply {
-            bind(ServiceA::class, ServiceAImpl::class)
-            bind(ServiceB::class, ServiceBImpl::class)
-            bind(ServiceC::class, AnotherServiceCImpl::class)
+            bind<ServiceA, ServiceAImpl>()
+            bind<ServiceB, ServiceBImpl>()
+            bind<ServiceC, AnotherServiceCImpl>()
         }
 
         val serviceAImpl = container.assemble<ServiceAImpl>()
@@ -123,8 +122,8 @@ class AddictContainerTest {
         container.changeModule("newModule")
 
         container.apply {
-            bind(ServiceA::class, AnotherServiceAImpl::class)
-            bind(ServiceB::class, ServiceBImpl::class)
+            bind<ServiceA, AnotherServiceAImpl>()
+            bind<ServiceB, ServiceBImpl>()
         }
 
         // this exceptions is expected and occurs because no binding for interface ServiceC is set
@@ -138,14 +137,14 @@ class AddictContainerTest {
 
     @Test
     fun testScoping() {
-        val container = AddictContainer().apply { bind(ServiceA::class, AnotherServiceAImpl::class) }
+        val container = AddictContainer().apply { bind<ServiceA, AnotherServiceAImpl>() }
         val serviceA = container.assemble<ServiceA>()
         val sameServiceA = container.assemble<ServiceA>()
         assertThat(serviceA, instanceOf(AnotherServiceAImpl::class.java))
         assertThat(sameServiceA, instanceOf(AnotherServiceAImpl::class.java))
         assertThat(serviceA, sameInstance(sameServiceA))
 
-        container.bind(ServiceB::class, AnotherServiceBImpl::class, scope = Scope.NEW_INSTANCE)
+        container.bind<ServiceB, AnotherServiceBImpl>(scope = Scope.NEW_INSTANCE)
         val serviceB = container.assemble<ServiceB>()
         val newServiceB = container.assemble<ServiceB>()
         assertThat(serviceB, instanceOf(AnotherServiceBImpl::class.java))
@@ -163,10 +162,10 @@ class AddictContainerTest {
                 "pair"  to Pair('a', 'z')
             )
 
-            bind(Foo::class, FooImpl::class, propertiesToInject)
-            bind(ServiceA::class, ServiceAImpl::class)
-            bind(ServiceB::class, ServiceBImpl::class)
-            bind(ServiceC::class, AnotherServiceCImpl::class)
+            bind<Foo, FooImpl>(propertiesToInject)
+            bind<ServiceA, ServiceAImpl>()
+            bind<ServiceB, ServiceBImpl>()
+            bind<ServiceC, AnotherServiceCImpl>()
         }
 
         val foo = container.assemble<Foo>()
@@ -189,7 +188,7 @@ class AddictContainerTest {
 
     @Test
     fun testLifecyclePostCreationHook() {
-        val container = AddictContainer().apply { bind(ServiceExample::class, AnotherServiceExampleImpl::class) }
+        val container = AddictContainer().apply { bind<ServiceExample, AnotherServiceExampleImpl>() }
         val serviceExample = container.assemble<ServiceExample>()
         assertThat(serviceExample, instanceOf(AnotherServiceExampleImpl::class.java))
         assertThat(serviceExample.test, Matchers.equalTo("changed"))
@@ -198,16 +197,16 @@ class AddictContainerTest {
     @Test
     fun testEqualBinding() {
         val container = AddictContainer()
-        assertThrows<EqualBindingNotAllowedException> { container.bind(ServiceA::class, ServiceA::class) }
+        assertThrows<EqualBindingNotAllowedException> { container.bind<ServiceA, ServiceA>() }
     }
 
     @Test
     fun testDetectingCircularDependencies() {
         val container = AddictContainer().apply {
-            bind(ServiceA::class, ServiceAImpl::class)
-            bind(ServiceB::class, ServiceBImpl::class)
-            bind(ServiceC::class, ServiceCImpl::class)
-            bind(Loop::class, LoopImpl::class)
+            bind<ServiceA, ServiceAImpl>()
+            bind<ServiceB, ServiceBImpl>()
+            bind<ServiceC, ServiceCImpl>()
+            bind<Loop, LoopImpl>()
         }
 
         assertThrows<CircularDependencyDetectedException> { container.assemble<Loop>() }

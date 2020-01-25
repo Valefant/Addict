@@ -67,16 +67,30 @@ class AddictContainer {
      * Binds an interface to a class so it can be injected as dependency when assembling an object.
      * Use a different module if you want to wire different implementations
      * Note: Using the same binding with another implementation will overwrite it.
-     * @param kInterface The interface to bind for the [activeModule]
-     * @param kClass The class which implements the interface
      * @param properties The properties to inject into [kClass]
      * @param scope Scoping of the binding
      */
-    fun <I : Any, C> bind(
-        kInterface: KClass<I>,
-        kClass: KClass<C>,
+    inline fun <reified I : Any, reified C> bind(
         properties: Map<String, Any> = emptyMap(),
         scope: Scope = Scope.SINGLETON
+    ) where C : I {
+        bind(I::class, C::class, properties, scope)
+    }
+    /**
+     * It's tedious to write bind(A::class, AImpl::class).
+     * Instead kotlin allows us to write bind<A, AImpl>() because of the preserved type parameter.
+     *
+     * Note: This method cannot be made private because inline function can only access public methods.
+     * Therefore it can still be invoked as usual but the more idiomatic way would be the to use it like the latter example.
+     * @param kInterface The interface to bind for the [activeModule]
+     * @param kClass The class which implements the interface
+     */
+    @PublishedApi
+    internal fun <I : Any, C> bind(
+        kInterface: KClass<I>,
+        kClass: KClass<C>,
+        properties: Map<String, Any>,
+        scope: Scope
     ) where C : I {
         if (kInterface == kClass) {
             throw EqualBindingNotAllowedException("You cannot bind to the same instance of ${kInterface.qualifiedName}")
