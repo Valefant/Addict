@@ -6,6 +6,15 @@ import java.util.*
 import kotlin.reflect.KClass
 
 /**
+ * Convenience function for less verbose initialization.
+ */
+fun addict(init: AddictContainer.() -> Unit): AddictContainer {
+    val container = AddictContainer()
+    container.init()
+    return container
+}
+
+/**
  * Basic IoC container with module capabilities.
  */
 class AddictContainer {

@@ -1,7 +1,8 @@
 package addict
 
 /**
- * Implementing this interfaces will execute methods during the lifecycle of an object requested by the [AddictContainer].
+ * Implementing this interface will execute the implemented functions
+ * during the lifecycle of an object requested by [AddictContainer].
  */
 interface Lifecycle {
     /**

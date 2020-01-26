@@ -9,7 +9,7 @@ import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-class AddictContainerTest {
+class AddictTest {
     interface Foo
     class FooImpl(
         val n: Int,
@@ -85,7 +85,7 @@ class AddictContainerTest {
 
     @Test
     fun testDependencyGraph() {
-        val container = AddictContainer().apply {
+        val container = addict {
             bind<ServiceA, ServiceAImpl>()
             bind<ServiceB, ServiceBImpl>()
             bind<ServiceC, ServiceCImpl>()
@@ -105,7 +105,7 @@ class AddictContainerTest {
 
     @Test
     fun testModules() {
-        val container = AddictContainer().apply {
+        val container = addict {
             bind<ServiceA, ServiceAImpl>()
             bind<ServiceB, ServiceBImpl>()
             bind<ServiceC, AnotherServiceCImpl>()
@@ -137,7 +137,7 @@ class AddictContainerTest {
 
     @Test
     fun testScoping() {
-        val container = AddictContainer().apply { bind<ServiceA, AnotherServiceAImpl>() }
+        val container = addict { bind<ServiceA, AnotherServiceAImpl>() }
         val serviceA = container.assemble<ServiceA>()
         val sameServiceA = container.assemble<ServiceA>()
         assertThat(serviceA, instanceOf(AnotherServiceAImpl::class.java))
@@ -153,7 +153,7 @@ class AddictContainerTest {
 
     @Test
     fun testPropertyInjection() {
-        val container = AddictContainer().apply {
+        val container = addict {
             readPropertySource()
 
             val propertiesToInject = mapOf(
@@ -182,13 +182,13 @@ class AddictContainerTest {
 
     @Test
     fun testPropertyInterpolation() {
-        val container = AddictContainer().apply { readPropertySource() }
+        val container = addict { readPropertySource() }
         assertThat(container.properties["example.greet"] as String, Matchers.equalTo("Hello John Doe"))
     }
 
     @Test
     fun testLifecyclePostCreationHook() {
-        val container = AddictContainer().apply { bind<ServiceExample, AnotherServiceExampleImpl>() }
+        val container = addict { bind<ServiceExample, AnotherServiceExampleImpl>() }
         val serviceExample = container.assemble<ServiceExample>()
         assertThat(serviceExample, instanceOf(AnotherServiceExampleImpl::class.java))
         assertThat(serviceExample.test, Matchers.equalTo("changed"))
@@ -196,13 +196,13 @@ class AddictContainerTest {
 
     @Test
     fun testEqualBinding() {
-        val container = AddictContainer()
+        val container = addict {}
         assertThrows<EqualBindingNotAllowedException> { container.bind<ServiceA, ServiceA>() }
     }
 
     @Test
     fun testDetectingCircularDependencies() {
-        val container = AddictContainer().apply {
+        val container = addict {
             bind<ServiceA, ServiceAImpl>()
             bind<ServiceB, ServiceBImpl>()
             bind<ServiceC, ServiceCImpl>()
