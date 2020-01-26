@@ -15,13 +15,12 @@ class BImpl : B
 class ExampleImpl constructor(val a: A, val b: B) : Example
 
 fun main() {
-    val container = AddictContainer().apply {
-        bind(A::class, AImpl::class)
-        bind(B::class, BImpl::class)
-        bind(Example::class, ExampleImpl::class)
+    val container = addict {
+        bind<A, AImpl>()
+        bind<B, BImpl>()
+        bind<Example, ExampleImpl>()
     } 
-    val example = container.assemble<Example>()
-    // example is now a valid instantiated object and ready to use
+    val example = container.assemble<Example>() // example is now a valid instantiated object and ready to use
 }
 ```
 For further examples you can have a look at the tests.
@@ -37,6 +36,8 @@ When the module does not exist it will be created automatically.
 
 ### Binding
 Interfaces and implementations are bound programmatically.
+The order of the bindings is not important.
+
 The signature of the function to achieve this is the following
 ```kotlin
 fun <I : Any, C> bind(
@@ -69,7 +70,7 @@ If you prefer the Java way you can use still use the function in this way ``asse
 ### Java Properties Source
 The property source is read from the resource folder and is applied in this manner
 ```kotlin
-AddictContainer().apply { propertySource("staging.properties") }
+addict { propertySource("staging.properties") }
 ```
 
 #### Additions
@@ -102,10 +103,10 @@ val props = mapOf(
     "pair"  to Pair('a', 'z')
 )
 
-container.bind(Foo::class, FooImpl::class, props)
+container.bind<Foo, FooImpl>(props)
 ```
 The properties for the ``FooImpl`` are provided by the ``props`` map.
-Default class values don't need to be provided but they can be overwritten if you like.
+Default constructor values don't need to be provided but they can be overwritten if you like.
 
 ### Lifecycle
 Addict provides an interface [Lifecycle](src/main/kotlin/addict/Lifecycle.kt)
@@ -119,5 +120,7 @@ Every property of the class is available within this function context.
 - [x] Detecting circular dependencies
 - [x] Make property injection and post construct available by code
     - Therefore we are not only depending on annotations. 
-    Additionally we can then support default values and other types than strings for the property injection. 
-    
+    Additionally we can then support default values and other types than strings for the property injection.
+- [ ] Provide a better separation of container and modules
+- [ ] Add the possibility to lazy load descended dependencies 
+- [ ] Add name/tag support
